@@ -27,7 +27,8 @@ struct MnemoxApp: App {
                 .preferredColorScheme(.dark)
                 .onAppear { state.load() }
         }
-        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1440, height: 900)
         .commands { AppCommands(state: state) }
     }

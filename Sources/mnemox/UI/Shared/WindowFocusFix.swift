@@ -3,10 +3,8 @@ import AppKit
 
 struct WindowFocusFix: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let view = FocusFixView()
-        return view
+        FocusFixView()
     }
-
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
