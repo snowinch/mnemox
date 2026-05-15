@@ -25,11 +25,13 @@ struct InputBar: View {
                 .focused($focused)
                 .foregroundStyle(Color(nsColor: .labelColor))
                 .onKeyPress(.return, phases: .down) { press in
-                    if press.modifiers.contains(.command) { handleSend(); return .handled }
-                    return .ignored
+                    if press.modifiers.contains(.shift) { return .ignored }
+                    handleSend()
+                    return .handled
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.top, 10)
+                .padding(.bottom, 16)
 
             Divider().opacity(0.15)
 

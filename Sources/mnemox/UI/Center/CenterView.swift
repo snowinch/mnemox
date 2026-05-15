@@ -7,7 +7,6 @@ struct CenterView: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             topBar
-            Divider().opacity(0.3)
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,9 +45,7 @@ struct CenterView: View {
                 }
             }
         } else {
-            Text("New Agent")
-                .font(.system(size: 11))
-                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+            EmptyView()
         }
     }
 

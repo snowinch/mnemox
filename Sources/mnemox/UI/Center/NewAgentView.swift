@@ -14,13 +14,12 @@ struct NewAgentView: View {
         VStack(spacing: 0) {
             Spacer()
             VStack(alignment: .leading, spacing: 14) {
-                heading
                 InputBar(text: $prompt, selectedRepo: $selectedRepo) {
                     guard canStart else { return }
                     state.startConversation(prompt: prompt, repo: selectedRepo)
                 }
             }
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 440)
             .padding(.horizontal, 24)
             Spacer()
             Spacer()
