@@ -7,62 +7,57 @@ struct CenterView: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             topBar
-            Divider()
+            Divider().opacity(0.3)
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
+    // MARK: Breadcrumb top bar
+
     private var topBar: some View {
-        HStack(spacing: 8) {
-            if !state.sidebarVisible {
-                Button {
-                    state.sidebarVisible = true
-                } label: {
-                    Image(systemName: "sidebar.left")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                }
-                .buttonStyle(.plain)
-                .help("Show Sidebar")
-            }
-
-            if let convo = state.selectedConversation, !state.isNewAgentDraft {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(convo.isRunning ? Color.green : Color(nsColor: .tertiaryLabelColor))
-                        .frame(width: 6, height: 6)
-                    Text(convo.title)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color(nsColor: .labelColor))
-                        .lineLimit(1)
-                }
-            } else {
-                Text("New Agent")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-            }
-
+        HStack(spacing: 0) {
+            breadcrumb
             Spacer(minLength: 0)
-
-            Button {
-                state.inspectorVisible.toggle()
-            } label: {
-                Image(systemName: "sidebar.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(state.inspectorVisible ? Color.blue : Color(nsColor: .secondaryLabelColor))
-            }
-            .buttonStyle(.plain)
-            .help("Toggle Inspector (⌘⇧R)")
-            .keyboardShortcut("r", modifiers: [.command, .shift])
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(height: 38)
+        .padding(.horizontal, 14)
+        .frame(height: 32)
     }
 
     @ViewBuilder
+    private var breadcrumb: some View {
+        if let project = currentProject, let convo = state.selectedConversation, !state.isNewAgentDraft {
+            HStack(spacing: 4) {
+                Text(project.name)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+                Text(convo.title)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                    .lineLimit(1)
+                if convo.isRunning {
+                    Circle()
+                        .fill(Color(nsColor: .labelColor).opacity(0.5))
+                        .frame(width: 4, height: 4)
+                }
+            }
+        } else {
+            Text("New Agent")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+        }
+    }
+
+    private var currentProject: Project? {
+        guard let convo = state.selectedConversation else { return nil }
+        return state.projects.first { $0.id == convo.projectID }
+    }
+
+@ViewBuilder
     private var content: some View {
         if state.isNewAgentDraft || state.selectedConversation == nil {
             NewAgentView()

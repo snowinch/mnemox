@@ -1,5 +1,4 @@
 import SwiftUI
-import Luminare
 
 struct InspectorView: View {
     @Environment(AppState.self) private var state
@@ -8,7 +7,7 @@ struct InspectorView: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             tabBar
-            Divider()
+            Divider().opacity(0.3)
             tabContent
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -16,34 +15,41 @@ struct InspectorView: View {
     }
 
     private var tabBar: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 1) {
             ForEach(InspectorTab.allCases) { tab in
-                inspectorTab(tab)
+                tabBtn(tab)
             }
+            Spacer(minLength: 0)
+            Button {
+                state.inspectorVisible = false
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .frame(height: 34)
     }
 
-    private func inspectorTab(_ tab: InspectorTab) -> some View {
-        @Bindable var state = state
-        let isSelected = state.inspectorTab == tab
+    private func tabBtn(_ tab: InspectorTab) -> some View {
+        let sel = state.inspectorTab == tab
         return Button {
             state.inspectorTab = tab
         } label: {
-            VStack(spacing: 3) {
+            HStack(spacing: 3) {
                 Image(systemName: tab.icon)
-                    .font(.system(size: 12))
+                    .font(.system(size: 10))
                 Text(tab.label)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 11))
             }
-            .foregroundStyle(isSelected ? Color.blue : Color(nsColor: .tertiaryLabelColor))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(isSelected ? Color.blue.opacity(0.1) : Color.clear)
-            )
+            .foregroundStyle(sel ? Color(nsColor: .labelColor) : Color(nsColor: .quaternaryLabelColor))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(sel ? Color.white.opacity(0.07) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
     }
@@ -51,14 +57,10 @@ struct InspectorView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch state.inspectorTab {
-        case .git:
-            GitDiffView()
-        case .browser:
-            BrowserView()
-        case .terminal:
-            TerminalView()
-        case .files:
-            FilesView()
+        case .git:      GitDiffView()
+        case .browser:  BrowserView()
+        case .terminal: TerminalView()
+        case .files:    FilesView()
         }
     }
 }

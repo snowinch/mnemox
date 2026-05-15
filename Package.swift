@@ -18,7 +18,15 @@ let package = Package(
         .executableTarget(
             name: "mnemox",
             dependencies: ["Luminare"],
-            path: "Sources/mnemox"
+            path: "Sources/mnemox",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Support/MnemoxEmbeddedInfo.plist",
+                ])
+            ]
         ),
         .testTarget(
             name: "mnemoxTests",

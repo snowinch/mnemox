@@ -5,61 +5,67 @@ struct ConversationView: View {
     let conversation: Conversation
 
     @State private var inputText = ""
-    @State private var scrollProxy: ScrollViewProxy?
+    @State private var branch: String? = nil
+    @State private var selectedRepo: URL? = nil
+
+    private var project: Project? {
+        state.projects.first { $0.id == conversation.projectID }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             messageList
-            Divider()
             inputArea
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: conversation.id) { await loadBranch() }
+        .onAppear { selectedRepo = project?.rootURL }
     }
 
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
-                    ForEach(conversation.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(conversation.messages) { msg in
+                        MessageBubble(message: msg).id(msg.id)
                     }
-
-                    if conversation.isRunning {
-                        runningIndicator
-                    }
-
+                    if conversation.isRunning { runningDot }
                     Color.clear.frame(height: 1).id("bottom")
                 }
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
             }
-            .onAppear {
-                scrollProxy = proxy
-                proxy.scrollTo("bottom", anchor: .bottom)
-            }
+            .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
             .onChange(of: conversation.messages.count) { _, _ in
-                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
     }
 
-    private var runningIndicator: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-                .scaleEffect(0.6)
-                .frame(width: 16, height: 16)
-            Text("Agent working…")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+    private var runningDot: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { _ in
+                Circle().fill(Color(nsColor: .quaternaryLabelColor)).frame(width: 4, height: 4)
+            }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20).padding(.vertical, 10)
     }
 
     private var inputArea: some View {
-        InputBar(text: $inputText) {
+        InputBar(text: $inputText, selectedRepo: $selectedRepo, branch: branch) {
             state.sendMessage(inputText)
             inputText = ""
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 14)
+        .padding(.top, 6)
+    }
+
+    private func loadBranch() async {
+        guard let url = project?.rootURL else { return }
+        let result = await Task.detached(priority: .utility) {
+            shell("git -C '\(url.path)' branch --show-current 2>/dev/null")
+        }.value
+        let t = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        branch = t.isEmpty ? nil : t
     }
 }

@@ -1,59 +1,81 @@
 import SwiftUI
-import Luminare
 
 struct SidebarView: View {
     @Environment(AppState.self) private var state
 
     var body: some View {
         VStack(spacing: 0) {
-            newAgentButton
-            Divider()
+            header
+            Divider().opacity(0.3)
             conversationList
-            Divider()
-            footer
+            Divider().opacity(0.3)
+            bottomActions
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .frame(maxHeight: .infinity)
     }
 
-    private var newAgentButton: some View {
-        Button {
-            state.newAgent()
-        } label: {
-            Label("New Agent", systemImage: "bolt.fill")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .font(.system(size: 13, weight: .medium))
-                .padding(.vertical, 1)
-        }
-        .buttonStyle(.luminareProminent)
-        .luminareTint(overridingWith: .blue)
-        .keyboardShortcut("n", modifiers: .command)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .accessibilityLabel("New Agent")
-    }
+    // MARK: - Header
 
-    private var conversationList: some View {
-        LuminareSidebar {
-            ForEach(state.projects) { project in
-                projectSection(project)
+    private var header: some View {
+        VStack(spacing: 1) {
+            actionRow(icon: "plus", label: "New Agent", shortcut: "⌘N") {
+                state.newAgent()
             }
         }
+        .frame(height: 34)
     }
 
-    @ViewBuilder
-    private func projectSection(_ project: Project) -> some View {
-        if project.conversations.isEmpty == false {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(project.name.uppercased())
-                    .font(.system(size: 10, weight: .semibold))
+    private func actionRow(icon: String, label: String, shortcut: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
                     .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-                    .padding(.horizontal, 4)
-                    .padding(.top, 4)
-
-                ForEach(project.conversations) { convo in
-                    conversationRow(convo)
+                    .frame(width: 14)
+                Text(label)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                Spacer(minLength: 0)
+                if let shortcut {
+                    Text(shortcut)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
                 }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle())
+    }
+
+    // MARK: - Conversation list
+
+    private var conversationList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(state.projects) { project in
+                    if !project.conversations.isEmpty {
+                        projectSection(project)
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func projectSection(_ project: Project) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(project.name.uppercased())
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
+                .padding(.bottom, 3)
+
+            ForEach(project.conversations) { convo in
+                conversationRow(convo)
             }
         }
     }
@@ -65,44 +87,55 @@ struct SidebarView: View {
         } label: {
             HStack(spacing: 7) {
                 Circle()
-                    .fill(convo.isRunning ? Color.green : (isSelected ? Color.blue : Color(nsColor: .quaternaryLabelColor)))
-                    .frame(width: 5, height: 5)
-
+                    .fill(isSelected
+                          ? Color(nsColor: .secondaryLabelColor)
+                          : Color(nsColor: .quaternaryLabelColor).opacity(0.6))
+                    .frame(width: 4, height: 4)
                 Text(convo.title)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .lineLimit(1)
-                    .foregroundStyle(isSelected ? Color(nsColor: .labelColor) : Color(nsColor: .secondaryLabelColor))
-
+                    .foregroundStyle(isSelected
+                                     ? Color(nsColor: .labelColor)
+                                     : Color(nsColor: .tertiaryLabelColor))
                 Spacer(minLength: 0)
+                if convo.isRunning {
+                    Circle()
+                        .fill(Color(nsColor: .labelColor).opacity(0.4))
+                        .frame(width: 4, height: 4)
+                }
             }
-            .padding(.vertical, 5)
-            .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
-            )
+            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .background(isSelected ? Color.white.opacity(0.07) : Color.clear)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(convo.title)
     }
 
-    private var footer: some View {
+    // MARK: - Bottom
+
+    private var bottomActions: some View {
         HStack {
-            Text("v0.1.0")
-                .font(.system(size: 11))
-                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
             Spacer(minLength: 0)
-            Button {
-            } label: {
+            Button {} label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+    }
+}
+
+// MARK: - Hover style
+
+struct HoverRowStyle: ButtonStyle {
+    @State private var hovering = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(hovering || configuration.isPressed ? Color.white.opacity(0.05) : Color.clear)
+            .onHover { hovering = $0 }
     }
 }

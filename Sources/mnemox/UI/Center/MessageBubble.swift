@@ -3,60 +3,121 @@ import SwiftUI
 struct MessageBubble: View {
     let message: Message
     @State private var stepsExpanded = false
+    @State private var hovering = false
+    @State private var editing = false
+    @State private var editBuffer = ""
 
     var body: some View {
         switch message.role {
-        case .user:
-            userBubble
-        case .assistant:
-            assistantBubble
-        case .system:
-            systemBubble
+        case .user:    userBubble
+        case .assistant: assistantBubble
+        case .system:  systemBubble
         }
     }
+
+    // MARK: - User bubble
 
     private var userBubble: some View {
-        HStack(alignment: .top, spacing: 0) {
-            Spacer(minLength: 60)
-            Text(message.content)
-                .font(.system(size: 13))
-                .foregroundStyle(Color.white)
-                .textSelection(.enabled)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+        HStack(alignment: .top, spacing: 8) {
+            Spacer(minLength: 80)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                // Edit controls on hover
+                if hovering && !editing {
+                    HStack(spacing: 6) {
+                        iconBtn("pencil") { startEdit() }
+                        iconBtn("arrow.uturn.left") { }
+                    }
+                    .transition(.opacity)
+                }
+
+                if editing {
+                    editingView
+                } else {
+                    Text(message.content)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color(nsColor: .labelColor))
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+                        )
+                }
+            }
         }
         .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.12), value: hovering)
     }
 
-    private var assistantBubble: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let steps = message.agentSteps, !steps.isEmpty {
-                agentStepsView(steps)
-            }
+    private var editingView: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            TextField("", text: $editBuffer, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(Color(nsColor: .labelColor))
+                .lineLimit(1...10)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                )
 
+            HStack(spacing: 6) {
+                Button("Cancel") { editing = false }
+                    .buttonStyle(GhostSmallStyle())
+                Button("Send") { editing = false }
+                    .buttonStyle(GhostSmallStyle())
+            }
+        }
+    }
+
+    private func startEdit() {
+        editBuffer = message.content
+        editing = true
+    }
+
+    // MARK: - Assistant bubble
+
+    private var assistantBubble: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let steps = message.agentSteps, !steps.isEmpty {
+                agentStepsDisclosure(steps)
+            }
             if !message.content.isEmpty {
-                renderedContent(message.content)
+                contentView(message.content)
                     .padding(.horizontal, 16)
             }
         }
+        .padding(.vertical, 4)
     }
+
+    // MARK: - System
 
     private var systemBubble: some View {
         Text(message.content)
-            .font(.system(size: 11))
-            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            .font(.system(size: 10))
+            .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
     }
 
+    // MARK: - Content renderer
+
     @ViewBuilder
-    private func renderedContent(_ text: String) -> some View {
+    private func contentView(_ text: String) -> some View {
         let segments = parseSegments(text)
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                switch segment {
+            ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
+                switch seg {
                 case .text(let t):
                     Text(t)
                         .font(.system(size: 13))
@@ -70,100 +131,103 @@ struct MessageBubble: View {
         }
     }
 
-    private func agentStepsView(_ steps: [AgentStep]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { stepsExpanded.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: stepsExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-                    Text("\(steps.count) agent step\(steps.count == 1 ? "" : "s")")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.plain)
+    // MARK: - Agent steps
 
-            if stepsExpanded {
+    private func agentStepsDisclosure(_ steps: [AgentStep]) -> some View {
+        DisclosureGroup(
+            isExpanded: $stepsExpanded,
+            content: {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(steps) { step in
-                        AgentStepRow(step: step)
+                        HStack(spacing: 6) {
+                            stepIcon(step.status)
+                            Text(step.action)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                            Text(step.agentType.rawValue)
+                                .font(.system(size: 9))
+                                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
+                        }
+                        .padding(.vertical, 2)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
+                .padding(.top, 4)
+            },
+            label: {
+                Text("\(steps.count) step\(steps.count == 1 ? "" : "s")")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
             }
-        }
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-    }
-}
-
-struct AgentStepRow: View {
-    let step: AgentStep
-
-    var body: some View {
-        HStack(spacing: 8) {
-            statusIcon
-            Text(step.action)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            Text(step.agentType.rawValue)
-                .font(.system(size: 10))
-                .foregroundStyle(Color(nsColor: .quaternaryLabelColor))
-        }
-        .padding(.vertical, 3)
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
 
-    private var statusIcon: some View {
+    private func stepIcon(_ status: AgentStatus) -> some View {
         Group {
-            switch step.status {
-            case .success:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
-            case .failed:
-                Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)
-            case .blocked:
-                Image(systemName: "pause.circle.fill").foregroundStyle(Color.orange)
-            case .skipped:
-                Image(systemName: "minus.circle").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            switch status {
+            case .success: Image(systemName: "checkmark").foregroundStyle(Color(nsColor: .secondaryLabelColor))
+            case .failed:  Image(systemName: "xmark").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            case .blocked: Image(systemName: "pause").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            case .skipped: Image(systemName: "minus").foregroundStyle(Color(nsColor: .quaternaryLabelColor))
             }
         }
-        .font(.system(size: 11))
+        .font(.system(size: 9))
+        .frame(width: 12)
+    }
+
+    // MARK: - Helpers
+
+    private func iconBtn(_ name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name)
+                .font(.system(size: 10))
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .frame(width: 22, height: 22)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Simple markdown segment parser
+// MARK: - Ghost small button
 
-private enum ContentSegment {
-    case text(String)
-    case code(String, String)
+struct GhostSmallStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11))
+            .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(configuration.isPressed ? Color.white.opacity(0.08) : Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
 }
+
+// MARK: - Segment parser
+
+private enum ContentSegment { case text(String); case code(String, String) }
 
 private func parseSegments(_ text: String) -> [ContentSegment] {
     var result: [ContentSegment] = []
     var remaining = text[text.startIndex...]
-
     while !remaining.isEmpty {
         if let fenceStart = remaining.range(of: "```") {
-            let before = String(remaining[remaining.startIndex ..< fenceStart.lowerBound])
+            let before = String(remaining[..<fenceStart.lowerBound])
             if !before.isEmpty { result.append(.text(before)) }
-
-            let afterFence = remaining[fenceStart.upperBound...]
-            let firstNewline = afterFence.firstIndex(of: "\n") ?? afterFence.endIndex
-            let lang = String(afterFence[afterFence.startIndex ..< firstNewline])
-            let codeStart = firstNewline < afterFence.endIndex ? afterFence.index(after: firstNewline) : afterFence.endIndex
-            let codeContent = afterFence[codeStart...]
-
-            if let endFence = codeContent.range(of: "```") {
-                let code = String(codeContent[codeContent.startIndex ..< endFence.lowerBound])
-                result.append(.code(lang, code.hasSuffix("\n") ? String(code.dropLast()) : code))
-                remaining = codeContent[endFence.upperBound...]
+            let after = remaining[fenceStart.upperBound...]
+            let nl = after.firstIndex(of: "\n") ?? after.endIndex
+            let lang = String(after[..<nl])
+            let codeStart = nl < after.endIndex ? after.index(after: nl) : after.endIndex
+            let codeContent = after[codeStart...]
+            if let end = codeContent.range(of: "```") {
+                var code = String(codeContent[..<end.lowerBound])
+                if code.hasSuffix("\n") { code = String(code.dropLast()) }
+                result.append(.code(lang, code))
+                remaining = codeContent[end.upperBound...]
             } else {
                 result.append(.text("```\(lang)\n\(codeContent)"))
                 break

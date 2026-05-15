@@ -1,8 +1,23 @@
 import SwiftUI
 import Luminare
+import AppKit
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            sender.windows.first?.makeKeyAndOrderFront(nil)
+        }
+        return true
+    }
+}
 
 @main
 struct MnemoxApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var state = AppState()
 
     var body: some Scene {
@@ -12,7 +27,7 @@ struct MnemoxApp: App {
                 .preferredColorScheme(.dark)
                 .onAppear { state.load() }
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .defaultSize(width: 1440, height: 900)
         .commands { AppCommands(state: state) }
     }
