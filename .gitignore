@@ -1,4 +1,5 @@
 .DS_Store
+.claude/worktrees/
 /.build
 /Packages
 xcuserdata/
