@@ -17,21 +17,22 @@ struct InputBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // ── Text input ─────────────────────────────────────
-            TextField("Plan, Build, / for commands, @ for context", text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .lineLimit(1...8)
-                .focused($focused)
-                .foregroundStyle(Color(nsColor: .labelColor))
-                .onKeyPress(.return, phases: .down) { press in
-                    if press.modifiers.contains(.shift) { return .ignored }
+            // ── Text input (Shift+↵ newline, ↵ and ⌘↵ send) ─────
+            GrowingTextEditor(
+                text: $text,
+                placeholder: "Plan, Build, / for commands, @ for context",
+                isFocused: $focused,
+                onKeyReturn: { press in
+                    if press.modifiers.contains(.shift) {
+                        text += "\n"
+                        return .handled
+                    }
                     handleSend()
                     return .handled
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 16)
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
 
             Divider().opacity(0.15)
 
